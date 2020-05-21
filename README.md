@@ -16,4 +16,4 @@ https://hibernate.atlassian.net/browse/HHH-12160?focusedCommentId=101110
 
 Install via jitpack.io
 
-https://jitpack.io/#drwolf-oss/hibernate-utils 
+https://jitpack.io/#drwolf-oss/hibernate-utils/0.0.1
