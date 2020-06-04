@@ -6,7 +6,7 @@ Contains useful classes to work with hibernate
 
 Install via jitpack.io
 
-https://jitpack.io/#drwolf-oss/hibernate-utils/0.0.1
+https://jitpack.io/#drwolf-oss/hibernate-utils
 
 ## DrWolf Naming Strategy
 
