@@ -32,7 +32,7 @@ public class DrWolfNamingStrategy extends ImplicitNamingStrategyJpaCompliantImpl
 				.getDatabase()
 				.getJdbcEnvironment()
 				.getIdentifierHelper()
-				.toIdentifier(name);
+				.toIdentifier(name.toUpperCase());
 	}
 
 	@Override
