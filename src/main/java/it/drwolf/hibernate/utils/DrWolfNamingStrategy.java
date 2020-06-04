@@ -14,13 +14,25 @@ public class DrWolfNamingStrategy extends ImplicitNamingStrategyJpaCompliantImpl
 
 	private Identifier buildIdentifier(String prefix, String tableName, List<Identifier> columnNames,
 			ImplicitNameSource source) {
+		String name = String.format("%s_%s", tableName,
+				columnNames.stream().map(Identifier::getText).collect(Collectors.joining("_")));
+
+		if (name.length() > 60) {
+			name = name.replaceAll("[aeiouyAEIOUY]", "");
+		}
+
+		name = String.format("%s_%s", prefix, name);
+
+		if (name.length() > 63) {
+			name = name.substring(0, 63);
+		}
+
 		return source.getBuildingContext()
 				.getMetadataCollector()
 				.getDatabase()
 				.getJdbcEnvironment()
 				.getIdentifierHelper()
-				.toIdentifier(String.format("%s_%s_%s", "fk", tableName,
-						columnNames.stream().map(Identifier::getText).collect(Collectors.joining("_"))));
+				.toIdentifier(name);
 	}
 
 	@Override
