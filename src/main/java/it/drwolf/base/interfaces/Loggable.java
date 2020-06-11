@@ -1,12 +1,12 @@
 package it.drwolf.base.interfaces;
 
-import play.Logger;
-import play.Logger.ALogger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public interface Loggable {
 
-	public default ALogger getLogger() {
-		return Logger.of(this.getClass());
+	public default Logger getLogger() {
+		return LoggerFactory.getLogger(this.getClass());
 	}
 
 }

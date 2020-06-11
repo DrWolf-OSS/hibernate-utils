@@ -5,7 +5,7 @@ import java.util.Collection;
 public class PaginatedData<T> {
 
 	/**
-	 * page's elements
+	 * page elements
 	 */
 	private Collection<T> elements;
 

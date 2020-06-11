@@ -9,7 +9,7 @@
 		<maven.compiler.target>1.8</maven.compiler.target>
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<hibernate-core.version>5.2.0.Final</hibernate-core.version>
-		<play-java-jpa.version>2.7.1</play-java-jpa.version>
+		<sl4j-api.version>1.7.30</sl4j-api.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -18,13 +18,10 @@
 			<version>${hibernate-core.version}</version>
 			<scope>provided</scope>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/com.typesafe.play/play-java-jpa -->
 		<dependency>
-		    <groupId>com.typesafe.play</groupId>
-		    <artifactId>play-java-jpa_2.11</artifactId>
-		    <version>${play-java-jpa.version}</version>
-		    <scope>provided</scope>
+		    <groupId>org.slf4j</groupId>
+		    <artifactId>slf4j-api</artifactId>
+		    <version>${sl4j-api.version}</version>
 		</dependency>
 	</dependencies>
-	
 </project>
