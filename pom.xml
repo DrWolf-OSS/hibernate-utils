@@ -8,12 +8,21 @@
 	<properties>
 		<maven.compiler.target>1.8</maven.compiler.target>
 		<maven.compiler.source>1.8</maven.compiler.source>
+		<hibernate-core.version>5.2.0.Final</hibernate-core.version>
+		<sl4j-api.version>1.7.30</sl4j-api.version>
 	</properties>
 	<dependencies>
 		<dependency>
 			<groupId>org.hibernate</groupId>
 			<artifactId>hibernate-core</artifactId>
-			<version>5.2.0.Final</version>
+			<version>${hibernate-core.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+		    <groupId>org.slf4j</groupId>
+		    <artifactId>slf4j-api</artifactId>
+		    <version>${sl4j-api.version}</version>
+		    <scope>provided</scope>
 		</dependency>
 	</dependencies>
 </project>
