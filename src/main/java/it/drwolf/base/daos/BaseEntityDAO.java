@@ -14,6 +14,8 @@ import javax.persistence.criteria.Root;
 
 import org.slf4j.Logger;
 
+import it.drwolf.base.daos.common.OrderParameter;
+import it.drwolf.base.daos.common.PageParameter;
 import it.drwolf.base.daos.common.PaginatedData;
 import it.drwolf.base.interfaces.Loggable;
 import it.drwolf.base.model.entities.BaseEntity;
@@ -28,10 +30,6 @@ import it.drwolf.base.model.entities.BaseEntity;
  * @param <T>
  */
 public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
-
-	public enum OrderType {
-		ASC, DESC;
-	}
 
 	protected final Logger logger = this.getLogger();
 
@@ -112,18 +110,28 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 	}
 
 	/**
-	 *
-	 * Return a single page of all entities of specified type order by "orderColumn"
+	 * Return a single page of all entities of specified type
 	 *
 	 * @param em
-	 * @param orderCol:  ordered field
-	 * @param orderType: ASC or DESC
-	 * @param page:      number of the curret page
-	 * @param size:      size of the current page
-	 * @return PaginatedData: a single page of entities
+	 * @param page: PageParameter instance with info about page number, page size
+	 *              and sorting
+	 * @return an instance of PaginatedData
 	 */
-	public PaginatedData<T> getAllPaginated(EntityManager em, String orderCol, OrderType orderType, int page,
-			int size) {
+	public PaginatedData<T> getAll(EntityManager em, PageParameter page) {
+		return this.getAll(em, page, null);
+	}
+
+	/**
+	 *
+	 * Return a single page of entities of specified type sorted by info contained
+	 * in OrderParameter
+	 *
+	 * @param em
+	 * @param page:  contain pagination info
+	 * @param order: contains sorting info
+	 * @return an instance of PaginatedData
+	 */
+	public PaginatedData<T> getAll(EntityManager em, PageParameter page, OrderParameter order) {
 		final Long total = this.countAll(em);
 		final List<Predicate> predicates = new ArrayList<>();
 		CriteriaBuilder criteriaBuilder = em.getCriteriaBuilder();
@@ -132,16 +140,12 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 		Root<T> rootItemDefinition = query.from(this.resourceClass);
 		query.select(rootItemDefinition).where(predicates.toArray(new Predicate[predicates.size()]));
 
-		if (orderCol != null && orderType != null && orderType.equals(OrderType.ASC)) {
-			query.orderBy(criteriaBuilder.asc(rootItemDefinition.get(orderCol)));
-		} else if (orderCol != null && orderType != null && orderType.equals(OrderType.DESC)) {
-			query.orderBy(criteriaBuilder.desc(rootItemDefinition.get(orderCol)));
-		}
+		this.handleOrderParameter(criteriaBuilder, query, rootItemDefinition, order);
 
-		final int first = this.calculateFirstResult(page, size);
-		List<T> elements = em.createQuery(query).setFirstResult(first).setMaxResults(size).getResultList();
+		final int first = this.calculateFirstResult(page.getPageNumber(), page.getSize());
+		List<T> elements = em.createQuery(query).setFirstResult(first).setMaxResults(page.getSize()).getResultList();
 
-		return new PaginatedData<>(elements, page, size, total.intValue());
+		return new PaginatedData<>(elements, page.getPageNumber(), page.getSize(), total.intValue());
 	}
 
 	/**
@@ -175,6 +179,17 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 					this.resourceClass).setParameter("ids", ids).getResultList();
 		} else {
 			return this.getAll(em);
+		}
+	}
+
+	protected void handleOrderParameter(CriteriaBuilder criteriaBuilder, CriteriaQuery<T> query,
+			Root<T> rootItemDefinition, OrderParameter order) {
+		if (order != null) {
+			if (order.getOrderType().equals(OrderParameter.OrderType.ASC)) {
+				query.orderBy(criteriaBuilder.asc(rootItemDefinition.get(order.getOrderField())));
+			} else if (order.getOrderType().equals(OrderParameter.OrderType.DESC)) {
+				query.orderBy(criteriaBuilder.desc(rootItemDefinition.get(order.getOrderField())));
+			}
 		}
 	}
 

@@ -61,7 +61,7 @@ BaseEntity also overrides default toString() in order to obtain a readable and s
 Output example: `User #42`. 
 Obviously this method can be overridden to obtain a better result.
 
-Example
+Example:
 
 ```java
 @Entity
@@ -89,16 +89,16 @@ public class User extends BaseEntity {
 ```
 Output: `User #42 (admin)`.
 
-## PaginatedData
+## PaginatedData, PageParameter and OrderParameter
 
-PaginatedData is an utility class useful to standardise the management of paginated data. All DAO's methods that involve paginated data should return an appropriate instance of this class.
+PaginatedData, PageParameter and OrderParameter are classes useful to standardise the management of paginated and sorted data. All DAO's methods that involve paginated and order data should take PageParameter and OrderParameter objects and return an appropriate instance of PaginatedData.
 
-Example
+Example:
 
 ```java
 public class UserDAO extends BasicEntityDAO<User> {
 
-	public PaginatedData<User> getAllPaginated(EntityManager em, String orderCol, OrderType orderType, int page, int size) {
+	public PaginatedData<User> getAll(EntityManager em, PageParameter page, OrderParameter order) {
 		// retrieve users and return instance of PaginatedData<User>
 	}
 

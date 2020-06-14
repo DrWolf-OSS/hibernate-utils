@@ -14,28 +14,13 @@ import java.util.Collection;
  */
 public class PaginatedData<T> {
 
-	/**
-	 * page elements
-	 */
-	private Collection<T> elements;
+	private final Collection<T> elements;
 
-	/**
-	 * current page
-	 */
-	private Integer page;
+	private final Integer page;
 
-	/**
-	 * page size
-	 */
-	private Integer size;
+	private final Integer size;
 
-	/**
-	 * total results
-	 */
-	private Integer total;
-
-	public PaginatedData() {
-	}
+	private final Integer total;
 
 	public PaginatedData(Collection<T> elements, Integer page, Integer size, Integer total) {
 		this.elements = elements;
@@ -44,36 +29,44 @@ public class PaginatedData<T> {
 		this.total = total;
 	}
 
+	/**
+	 *
+	 * Return the current page's elements
+	 *
+	 * @return
+	 */
 	public Collection<T> getElements() {
 		return this.elements;
 	}
 
+	/**
+	 *
+	 * Return the number of the current page
+	 *
+	 * @return
+	 */
 	public Integer getPage() {
 		return this.page;
 	}
 
+	/**
+	 *
+	 * Return the size of the current page
+	 *
+	 * @return
+	 */
 	public Integer getSize() {
 		return this.size;
 	}
 
+	/**
+	 *
+	 * Return the total count of the results
+	 *
+	 * @return
+	 */
 	public Integer getTotal() {
 		return this.total;
-	}
-
-	public void setElements(Collection<T> elements) {
-		this.elements = elements;
-	}
-
-	public void setPage(Integer page) {
-		this.page = page;
-	}
-
-	public void setSize(Integer size) {
-		this.size = size;
-	}
-
-	public void setTotal(Integer total) {
-		this.total = total;
 	}
 
 }
