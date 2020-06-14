@@ -18,7 +18,16 @@ import it.drwolf.base.daos.common.PaginatedData;
 import it.drwolf.base.interfaces.Loggable;
 import it.drwolf.base.model.entities.BaseEntity;
 
-public class BaseEntityDAO<T extends BaseEntity> implements Loggable {
+/**
+ * BasicEntityDAO is an abstract DAO that provides basic funcionalities to
+ * manage entities, in order to use it your entities must extend BaseEntity and
+ * your DAOs must extend BasicEntityDAO.
+ *
+ * @author spaladini
+ *
+ * @param <T>
+ */
+public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 
 	public enum OrderType {
 		ASC, DESC;
@@ -42,6 +51,13 @@ public class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 		return first;
 	}
 
+	/**
+	 *
+	 * Return a count of all entities of specified type
+	 *
+	 * @param em
+	 * @return total count
+	 */
 	public Long countAll(EntityManager em) {
 		CriteriaBuilder criteriaBuilder = em.getCriteriaBuilder();
 		CriteriaQuery<Long> countQuery = criteriaBuilder.createQuery(Long.class);
@@ -49,22 +65,63 @@ public class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 		return em.createQuery(countQuery).getSingleResult();
 	}
 
+	/**
+	 *
+	 * Create an entity instance of specified type
+	 *
+	 * @param em
+	 * @return
+	 */
 	protected void create(EntityManager em, T entity) {
 		em.persist(entity);
 	}
 
+	/**
+	 *
+	 * Delete the entity instance
+	 *
+	 * @param em
+	 * @param entity
+	 */
 	public void delete(EntityManager em, T entity) {
 		em.remove(entity);
 	}
 
+	/**
+	 *
+	 * Find by primary key.<br>
+	 * Return an Optional containing (or not) an entity of the specified type
+	 *
+	 * @param em
+	 * @param id: primary key (@Id) of the entity instance
+	 * @return an Optional of nullable
+	 */
 	public Optional<T> find(EntityManager em, Object id) {
 		return Optional.ofNullable(em.find(this.resourceClass, id));
 	}
 
+	/**
+	 *
+	 * Return all entities of specified type
+	 *
+	 * @param em
+	 * @return
+	 */
 	public List<T> getAll(EntityManager em) {
 		return em.createQuery("from " + this.resourceClass.getName(), this.resourceClass).getResultList();
 	}
 
+	/**
+	 *
+	 * Return a single page of all entities of specified type order by "orderColumn"
+	 *
+	 * @param em
+	 * @param orderCol:  ordered field
+	 * @param orderType: ASC or DESC
+	 * @param page:      number of the curret page
+	 * @param size:      size of the current page
+	 * @return PaginatedData: a single page of entities
+	 */
 	public PaginatedData<T> getAllPaginated(EntityManager em, String orderCol, OrderType orderType, int page,
 			int size) {
 		final Long total = this.countAll(em);
@@ -87,6 +144,14 @@ public class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 		return new PaginatedData<>(elements, page, size, total.intValue());
 	}
 
+	/**
+	 *
+	 * Return all entities of specified type that have their id in the ids set
+	 *
+	 * @param em
+	 * @param ids
+	 * @return
+	 */
 	public List<T> getIfInIdSet(EntityManager em, Set<? extends Object> ids) {
 		if (!ids.isEmpty()) {
 			return em.createQuery("FROM " + this.resourceClass.getName() + " en WHERE en.id IN(:ids)",
@@ -96,6 +161,14 @@ public class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 		}
 	}
 
+	/**
+	 *
+	 * Return all entities of specified type that don't have their id in the ids set
+	 *
+	 * @param em
+	 * @param ids
+	 * @return
+	 */
 	public List<T> getIfNotInIdSet(EntityManager em, Set<? extends Object> ids) {
 		if (!ids.isEmpty()) {
 			return em.createQuery("FROM " + this.resourceClass.getName() + " en WHERE en.id NOT IN(:ids)",
@@ -105,19 +178,27 @@ public class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 		}
 	}
 
+	/**
+	 *
+	 * Persiste or update an entity of specified type and return it
+	 *
+	 * @param em
+	 * @param entity
+	 * @return
+	 */
 	public T save(EntityManager em, T entity) {
 		if (entity.getId() == null) {
 			this.create(em, entity);
 			return entity;
 		} else {
-			T res = this.update(em, entity);
-			em.flush();
-			return res;
+			return this.update(em, entity);
 		}
 	}
 
 	protected T update(EntityManager em, T entity) {
-		return em.merge(entity);
+		T updated = em.merge(entity);
+		em.flush();
+		return updated;
 	}
 
 }

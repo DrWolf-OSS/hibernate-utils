@@ -2,6 +2,16 @@ package it.drwolf.base.daos.common;
 
 import java.util.Collection;
 
+/**
+ *
+ * Utility class useful to standardise the management of paginated data.<br>
+ * All DAO's methods that involve paginated data should return an appropriate
+ * instance of PaginatedData
+ *
+ * @author spaladini
+ *
+ * @param <T>
+ */
 public class PaginatedData<T> {
 
 	/**
@@ -28,7 +38,6 @@ public class PaginatedData<T> {
 	}
 
 	public PaginatedData(Collection<T> elements, Integer page, Integer size, Integer total) {
-		super();
 		this.elements = elements;
 		this.page = page;
 		this.size = size;
