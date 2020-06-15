@@ -3,7 +3,7 @@ package it.drwolf.base.model.entities;
 /**
  *
  * Your entities must extend this abstract class in order to be used with DAOs
- * that extend BasicEntityDAO.<br>
+ * that extend BaseEntityDAO.<br>
  *
  * It also overrides default toString() in order to obtain a readable and
  * standard output among all entities.<br>

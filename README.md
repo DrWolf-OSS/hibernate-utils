@@ -29,7 +29,7 @@ https://hibernate.atlassian.net/browse/HHH-12160?focusedCommentId=101110
 
 ## BaseEntity and BaseEntityDAO
 
-BasicEntityDAO is an abstract DAO that provides basic funcionalities to manage entities, in order to use it your entities must extend BaseEntity and your DAOs must extend BasicEntityDAO.
+BaseEntityDAO is an abstract DAO that provides basic funcionalities to manage entities, in order to use it your entities must extend BaseEntity and your DAOs must extend BaseEntityDAO.
 
 Example:
 
@@ -52,7 +52,7 @@ public class User extends BaseEntity {
 ```
 
 ```java
-public class UserDAO extends BasicEntityDAO<User> {
+public class UserDAO extends BaseEntityDAO<User> {
 
 }
 ```
@@ -96,7 +96,7 @@ PaginatedData, PageParameter and OrderParameter are classes useful to standardis
 Example:
 
 ```java
-public class UserDAO extends BasicEntityDAO<User> {
+public class UserDAO extends BaseEntityDAO<User> {
 
 	public PaginatedData<User> getAll(EntityManager em, PageParameter page, OrderParameter order) {
 		// retrieve users and return instance of PaginatedData<User>

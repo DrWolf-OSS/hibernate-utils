@@ -21,9 +21,9 @@ import it.drwolf.base.interfaces.Loggable;
 import it.drwolf.base.model.entities.BaseEntity;
 
 /**
- * BasicEntityDAO is an abstract DAO that provides basic funcionalities to
- * manage entities, in order to use it your entities must extend BaseEntity and
- * your DAOs must extend BasicEntityDAO.
+ * BaseEntityDAO is an abstract DAO that provides basic funcionalities to manage
+ * entities, in order to use it your entities must extend BaseEntity and your
+ * DAOs must extend BaseEntityDAO.
  *
  * @author spaladini
  *
