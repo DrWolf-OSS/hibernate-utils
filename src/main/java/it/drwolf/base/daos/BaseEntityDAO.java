@@ -14,15 +14,22 @@ import javax.persistence.criteria.Root;
 
 import org.slf4j.Logger;
 
+import it.drwolf.base.daos.common.OrderParameter;
+import it.drwolf.base.daos.common.PageParameter;
 import it.drwolf.base.daos.common.PaginatedData;
 import it.drwolf.base.interfaces.Loggable;
 import it.drwolf.base.model.entities.BaseEntity;
 
-public class BaseEntityDAO<T extends BaseEntity> implements Loggable {
-
-	public enum OrderType {
-		ASC, DESC;
-	}
+/**
+ * BaseEntityDAO is an abstract DAO that provides basic funcionalities to manage
+ * entities, in order to use it your entities must extend BaseEntity and your
+ * DAOs must extend BaseEntityDAO.
+ *
+ * @author spaladini
+ *
+ * @param <T>
+ */
+public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 
 	protected final Logger logger = this.getLogger();
 
@@ -42,6 +49,13 @@ public class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 		return first;
 	}
 
+	/**
+	 *
+	 * Return a count of all entities of specified type
+	 *
+	 * @param em
+	 * @return total count
+	 */
 	public Long countAll(EntityManager em) {
 		CriteriaBuilder criteriaBuilder = em.getCriteriaBuilder();
 		CriteriaQuery<Long> countQuery = criteriaBuilder.createQuery(Long.class);
@@ -49,24 +63,75 @@ public class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 		return em.createQuery(countQuery).getSingleResult();
 	}
 
+	/**
+	 *
+	 * Create an entity instance of specified type
+	 *
+	 * @param em
+	 * @return
+	 */
 	protected void create(EntityManager em, T entity) {
 		em.persist(entity);
 	}
 
+	/**
+	 *
+	 * Delete the entity instance
+	 *
+	 * @param em
+	 * @param entity
+	 */
 	public void delete(EntityManager em, T entity) {
 		em.remove(entity);
 	}
 
+	/**
+	 *
+	 * Find by primary key.<br>
+	 * Return an Optional containing (or not) an entity of the specified type
+	 *
+	 * @param em
+	 * @param id: primary key (@Id) of the entity instance
+	 * @return an Optional of nullable
+	 */
 	public Optional<T> find(EntityManager em, Object id) {
 		return Optional.ofNullable(em.find(this.resourceClass, id));
 	}
 
+	/**
+	 *
+	 * Return all entities of specified type
+	 *
+	 * @param em
+	 * @return
+	 */
 	public List<T> getAll(EntityManager em) {
 		return em.createQuery("from " + this.resourceClass.getName(), this.resourceClass).getResultList();
 	}
 
-	public PaginatedData<T> getAllPaginated(EntityManager em, String orderCol, OrderType orderType, int page,
-			int size) {
+	/**
+	 * Return a single page of all entities of specified type
+	 *
+	 * @param em
+	 * @param page: PageParameter instance with info about page number, page size
+	 *              and sorting
+	 * @return an instance of PaginatedData
+	 */
+	public PaginatedData<T> getAll(EntityManager em, PageParameter page) {
+		return this.getAll(em, page, null);
+	}
+
+	/**
+	 *
+	 * Return a single page of entities of specified type sorted by info contained
+	 * in OrderParameter
+	 *
+	 * @param em
+	 * @param page:  contain pagination info
+	 * @param order: contains sorting info
+	 * @return an instance of PaginatedData
+	 */
+	public PaginatedData<T> getAll(EntityManager em, PageParameter page, OrderParameter order) {
 		final Long total = this.countAll(em);
 		final List<Predicate> predicates = new ArrayList<>();
 		CriteriaBuilder criteriaBuilder = em.getCriteriaBuilder();
@@ -75,18 +140,22 @@ public class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 		Root<T> rootItemDefinition = query.from(this.resourceClass);
 		query.select(rootItemDefinition).where(predicates.toArray(new Predicate[predicates.size()]));
 
-		if (orderCol != null && orderType != null && orderType.equals(OrderType.ASC)) {
-			query.orderBy(criteriaBuilder.asc(rootItemDefinition.get(orderCol)));
-		} else if (orderCol != null && orderType != null && orderType.equals(OrderType.DESC)) {
-			query.orderBy(criteriaBuilder.desc(rootItemDefinition.get(orderCol)));
-		}
+		this.handleOrderParameter(criteriaBuilder, query, rootItemDefinition, order);
 
-		final int first = this.calculateFirstResult(page, size);
-		List<T> elements = em.createQuery(query).setFirstResult(first).setMaxResults(size).getResultList();
+		final int first = this.calculateFirstResult(page.getPageNumber(), page.getSize());
+		List<T> elements = em.createQuery(query).setFirstResult(first).setMaxResults(page.getSize()).getResultList();
 
-		return new PaginatedData<>(elements, page, size, total.intValue());
+		return new PaginatedData<>(elements, page.getPageNumber(), page.getSize(), total.intValue());
 	}
 
+	/**
+	 *
+	 * Return all entities of specified type that have their id in the ids set
+	 *
+	 * @param em
+	 * @param ids
+	 * @return
+	 */
 	public List<T> getIfInIdSet(EntityManager em, Set<? extends Object> ids) {
 		if (!ids.isEmpty()) {
 			return em.createQuery("FROM " + this.resourceClass.getName() + " en WHERE en.id IN(:ids)",
@@ -96,6 +165,14 @@ public class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 		}
 	}
 
+	/**
+	 *
+	 * Return all entities of specified type that don't have their id in the ids set
+	 *
+	 * @param em
+	 * @param ids
+	 * @return
+	 */
 	public List<T> getIfNotInIdSet(EntityManager em, Set<? extends Object> ids) {
 		if (!ids.isEmpty()) {
 			return em.createQuery("FROM " + this.resourceClass.getName() + " en WHERE en.id NOT IN(:ids)",
@@ -105,19 +182,38 @@ public class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 		}
 	}
 
+	protected void handleOrderParameter(CriteriaBuilder criteriaBuilder, CriteriaQuery<T> query,
+			Root<T> rootItemDefinition, OrderParameter order) {
+		if (order != null) {
+			if (order.getOrderType().equals(OrderParameter.OrderType.ASC)) {
+				query.orderBy(criteriaBuilder.asc(rootItemDefinition.get(order.getOrderField())));
+			} else if (order.getOrderType().equals(OrderParameter.OrderType.DESC)) {
+				query.orderBy(criteriaBuilder.desc(rootItemDefinition.get(order.getOrderField())));
+			}
+		}
+	}
+
+	/**
+	 *
+	 * Persiste or update an entity of specified type and return it
+	 *
+	 * @param em
+	 * @param entity
+	 * @return
+	 */
 	public T save(EntityManager em, T entity) {
 		if (entity.getId() == null) {
 			this.create(em, entity);
 			return entity;
 		} else {
-			T res = this.update(em, entity);
-			em.flush();
-			return res;
+			return this.update(em, entity);
 		}
 	}
 
 	protected T update(EntityManager em, T entity) {
-		return em.merge(entity);
+		T updated = em.merge(entity);
+		em.flush();
+		return updated;
 	}
 
 }
