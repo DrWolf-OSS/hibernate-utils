@@ -29,7 +29,7 @@ https://hibernate.atlassian.net/browse/HHH-12160?focusedCommentId=101110
 
 ## BaseEntity and BaseEntityDAO
 
-BaseEntityDAO is an abstract DAO that provides basic funcionalities to manage entities, in order to use it your entities must extend BaseEntity and your DAOs must extend BaseEntityDAO.
+BaseEntityDAO is an abstract DAO that provides basic functionalities to manage entities, in order to use it your entities must extend BaseEntity and your DAOs must extend BaseEntityDAO.
 
 Example:
 
@@ -104,23 +104,3 @@ public class UserDAO extends BaseEntityDAO<User> {
 
 }
 ```
-
-## Loggable interface
-
-Loggable is an interface whit a default method that provides an instance of org.slf4j.Logger
-
-Example:
-
-```java
-public class Importer implements Loggable {
-
-	protected final Logger logger = this.getLogger();
-	
-	public void process() {
-		this.logger.info("Start import process...");
-	}
-	
-}
-
-```
-
