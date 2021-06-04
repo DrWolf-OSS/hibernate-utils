@@ -12,6 +12,7 @@ import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 
+import it.drwolf.exceptions.HttpException;
 import org.slf4j.Logger;
 
 import it.drwolf.base.daos.common.OrderParameter;
@@ -31,7 +32,6 @@ import it.drwolf.base.model.entities.BaseEntity;
  */
 public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 
-	protected final Logger logger = this.getLogger();
 
 	protected final Class<T> resourceClass;
 
@@ -96,6 +96,21 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 	 */
 	public Optional<T> find(EntityManager em, Object id) {
 		return Optional.ofNullable(em.find(this.resourceClass, id));
+	}
+
+	/**
+	 *
+	 * Find by primary key.<br>
+	 * Return an the entity of the specified type
+	 *
+	 * @param em
+	 * @param id: primary key (@Id) of the entity instance
+	 * @return an Optional of nullable
+	 *
+	 * @throws HttpException (NOT_FOUND) if not present
+	 */
+	public T get(EntityManager em, Object id) {
+		return this.find(em, id).orElseThrow(()->new HttpException(String.format("%s #%s not found",resourceClass,id), HttpException.Status.NOT_FOUND));
 	}
 
 	/**
