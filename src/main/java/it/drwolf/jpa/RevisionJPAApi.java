@@ -6,20 +6,20 @@ import java.util.function.Function;
 import javax.inject.Inject;
 import javax.persistence.EntityManager;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import it.drwolf.jwt.JWTUtils;
 import play.db.jpa.JPAApi;
 import play.mvc.Http.Request;
 
-public class RevisionJPAApi<U> {
+public class RevisionJPAApi {
 
-	private final Class<U> resourceClass;
 
-	public static final ThreadLocal<Object> currentUser = new ThreadLocal<>();
+	public static final ThreadLocal<ObjectNode> currentUser = new ThreadLocal<>();
 
 
 	public RevisionJPAApi() {
-		this.resourceClass = (Class<U>) ((ParameterizedType) this.getClass().getGenericSuperclass())
-				.getActualTypeArguments()[0];
+
 	}
 
 	@Inject
@@ -38,7 +38,7 @@ public class RevisionJPAApi<U> {
 			RevisionJPAApi.currentUser.remove();
 			if (request != null) {
 				try {
-					RevisionJPAApi.currentUser.set(this.jwtUtils.getUser(request,resourceClass));
+					RevisionJPAApi.currentUser.set(this.jwtUtils.getUser(request));
 				} catch (Exception e) {
 					RevisionJPAApi.currentUser.remove();
 				}
