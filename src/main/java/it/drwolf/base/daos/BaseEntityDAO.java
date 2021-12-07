@@ -7,38 +7,138 @@ import java.util.Optional;
 import java.util.Set;
 
 import javax.persistence.EntityManager;
+import javax.persistence.TypedQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.From;
+import javax.persistence.criteria.Join;
+import javax.persistence.criteria.Order;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
+import javax.persistence.criteria.Selection;
 
-import it.drwolf.exceptions.HttpException;
-import org.slf4j.Logger;
-
+import it.drwolf.base.daos.common.JoinManager;
 import it.drwolf.base.daos.common.OrderParameter;
 import it.drwolf.base.daos.common.PageParameter;
 import it.drwolf.base.daos.common.PaginatedData;
+import it.drwolf.base.daos.common.SqlUtils;
+import it.drwolf.base.daos.common.exceptions.FilterParameterException;
+import it.drwolf.base.daos.common.filter.FilterParameter;
 import it.drwolf.base.interfaces.Loggable;
 import it.drwolf.base.model.entities.BaseEntity;
+import it.drwolf.exceptions.HttpException;
 
 /**
- * BaseEntityDAO is an abstract DAO that provides basic funcionalities to manage
+ * BaseEntityDAO is an abstract DAO that provides basic functionalities to manage
  * entities, in order to use it your entities must extend BaseEntity and your
  * DAOs must extend BaseEntityDAO.
  *
- * @author spaladini
- *
  * @param <T>
+ * @author spaladini
  */
 public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 
-
 	protected final Class<T> resourceClass;
+
+	public enum QueryType {
+		ENTITIES, IDS, COUNT
+	}
 
 	@SuppressWarnings("unchecked")
 	public BaseEntityDAO() {
-		this.resourceClass = (Class<T>) ((ParameterizedType) this.getClass().getGenericSuperclass())
-				.getActualTypeArguments()[0];
+		this.resourceClass = (Class<T>) ((ParameterizedType) this.getClass()
+				.getGenericSuperclass()).getActualTypeArguments()[0];
+	}
+
+	private <V> CriteriaQuery<V> buildCriteriaQuery(EntityManager em, QueryType queryType, Class<V> clazz,
+			Set<FilterParameter> filters, OrderParameter order) {
+
+		CriteriaBuilder criteriaBuilder = em.getCriteriaBuilder();
+
+		CriteriaQuery<V> query = criteriaBuilder.createQuery(clazz);
+		Root<T> root = query.from(this.resourceClass);
+
+		final JoinManager<T> joinManager = new JoinManager<>(root);
+		final List<Predicate> predicates = new ArrayList<>();
+
+		for (FilterParameter filter : filters) {
+			Predicate p;
+			if (!filter.getJoinName().equals(FilterParameter.ROOT)) {
+				Join<BaseEntity, BaseEntity> join = joinManager.findOrMakeJoin(filter.getJoinName());
+				p = this.buildPredicate(criteriaBuilder, join, filter);
+			} else {
+				p = this.buildPredicate(criteriaBuilder, root, filter);
+			}
+			predicates.add(p);
+		}
+
+		if (queryType.equals(QueryType.COUNT)) {
+			query.select((Selection<? extends V>) criteriaBuilder.countDistinct(root.get("id")));
+		} else if (queryType.equals(QueryType.IDS)) {
+			query.select(root.get("id")).groupBy(root.get("id"));
+		} else if (queryType.equals(QueryType.ENTITIES)) {
+			query.select((Selection<? extends V>) root).groupBy(root.get("id"));
+		}
+
+		if (order != null && !queryType.equals(QueryType.COUNT)) {
+			Order orderBy = joinManager.buildCriteriaOrder(criteriaBuilder, order, true);
+			query.orderBy(orderBy);
+		}
+
+		return query.where(predicates.toArray(new Predicate[predicates.size()]));
+	}
+
+	private Predicate buildPredicate(CriteriaBuilder criteriaBuilder, From from, FilterParameter filter) {
+
+		switch (filter.getOperator()) {
+
+		case EQ:
+			return criteriaBuilder.equal(from.get(filter.getFieldName()), filter.getValue());
+
+		case GT:
+			return criteriaBuilder.greaterThan(from.get(filter.getFieldName()), (Comparable) filter.getValue());
+
+		case GE:
+			return criteriaBuilder.greaterThanOrEqualTo(from.get(filter.getFieldName()),
+					(Comparable) filter.getValue());
+
+		case LT:
+			return criteriaBuilder.lessThan(from.get(filter.getFieldName()), (Comparable) filter.getValue());
+
+		case LE:
+			return criteriaBuilder.lessThanOrEqualTo(from.get(filter.getFieldName()), (Comparable) filter.getValue());
+
+		case LIKE:
+			return criteriaBuilder.like(from.get(filter.getFieldName()), "%" + filter.getValue() + "%");
+
+		case NOT_LIKE:
+			return criteriaBuilder.notLike(from.get(filter.getFieldName()), "%" + filter.getValue() + "%");
+
+		case IN:
+			return criteriaBuilder.in(from.get(filter.getFieldName())).value(filter.getValue());
+
+		case NOT_IN:
+			return criteriaBuilder.not(criteriaBuilder.in(from.get(filter.getFieldName())).value(filter.getValue()));
+
+		case IS_EMPTY:
+			return criteriaBuilder.isEmpty(from.get(filter.getFieldName()));
+
+		case IS_NULL:
+			return criteriaBuilder.isNull(from.get(filter.getFieldName()));
+
+		case IS_NOT_NULL:
+			return criteriaBuilder.isNotNull(from.get(filter.getFieldName()));
+
+		case IS_TRUE:
+			return criteriaBuilder.isTrue(from.get(filter.getFieldName()));
+
+		case IS_FALSE:
+			return criteriaBuilder.isFalse(from.get(filter.getFieldName()));
+
+		default:
+			throw new FilterParameterException(String.format("Operator %s not implemented!", filter.getOperator()));
+		}
+
 	}
 
 	protected int calculateFirstResult(int page, int size) {
@@ -50,7 +150,6 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 	}
 
 	/**
-	 *
 	 * Return a count of all entities of specified type
 	 *
 	 * @param em
@@ -64,7 +163,6 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 	}
 
 	/**
-	 *
 	 * Create an entity instance of specified type
 	 *
 	 * @param em
@@ -75,7 +173,6 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 	}
 
 	/**
-	 *
 	 * Delete the entity instance
 	 *
 	 * @param em
@@ -86,7 +183,6 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 	}
 
 	/**
-	 *
 	 * Find by primary key.<br>
 	 * Return an Optional containing (or not) an entity of the specified type
 	 *
@@ -99,22 +195,21 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 	}
 
 	/**
-	 *
 	 * Find by primary key.<br>
-	 * Return an the entity of the specified type
+	 * Return an entity of the specified type
 	 *
 	 * @param em
 	 * @param id: primary key (@Id) of the entity instance
 	 * @return an Optional of nullable
-	 *
 	 * @throws HttpException (NOT_FOUND) if not present
 	 */
 	public T get(EntityManager em, Object id) {
-		return this.find(em, id).orElseThrow(()->new HttpException(String.format("%s #%s not found",resourceClass,id), HttpException.Status.NOT_FOUND));
+		return this.find(em, id)
+				.orElseThrow(() -> new HttpException(String.format("%s #%s not found", this.resourceClass, id),
+						HttpException.Status.NOT_FOUND));
 	}
 
 	/**
-	 *
 	 * Return all entities of specified type
 	 *
 	 * @param em
@@ -133,11 +228,10 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 	 * @return an instance of PaginatedData
 	 */
 	public PaginatedData<T> getAll(EntityManager em, PageParameter page) {
-		return this.getAll(em, page, null);
+		return this.getAll(em, null, page);
 	}
 
 	/**
-	 *
 	 * Return a single page of entities of specified type sorted by info contained
 	 * in OrderParameter
 	 *
@@ -146,7 +240,7 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 	 * @param order: contains sorting info
 	 * @return an instance of PaginatedData
 	 */
-	public PaginatedData<T> getAll(EntityManager em, PageParameter page, OrderParameter order) {
+	public PaginatedData<T> getAll(EntityManager em, OrderParameter order, PageParameter page) {
 		final Long total = this.countAll(em);
 		final List<Predicate> predicates = new ArrayList<>();
 		CriteriaBuilder criteriaBuilder = em.getCriteriaBuilder();
@@ -164,7 +258,6 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 	}
 
 	/**
-	 *
 	 * Return all entities of specified type that have their id in the ids set
 	 *
 	 * @param em
@@ -176,12 +269,11 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 			return em.createQuery("FROM " + this.resourceClass.getName() + " en WHERE en.id IN(:ids)",
 					this.resourceClass).setParameter("ids", ids).getResultList();
 		} else {
-			return new ArrayList<T>();
+			return new ArrayList<>();
 		}
 	}
 
 	/**
-	 *
 	 * Return all entities of specified type that don't have their id in the ids set
 	 *
 	 * @param em
@@ -197,19 +289,19 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 		}
 	}
 
-	protected void handleOrderParameter(CriteriaBuilder criteriaBuilder, CriteriaQuery<T> query,
-			Root<T> rootItemDefinition, OrderParameter order) {
+	@Deprecated
+	protected void handleOrderParameter(CriteriaBuilder criteriaBuilder, CriteriaQuery<T> query, Root<T> rootElement,
+			OrderParameter order) {
 		if (order != null) {
 			if (order.getOrderType().equals(OrderParameter.OrderType.ASC)) {
-				query.orderBy(criteriaBuilder.asc(rootItemDefinition.get(order.getOrderField())));
+				query.orderBy(criteriaBuilder.asc(rootElement.get(order.getOrderField())));
 			} else if (order.getOrderType().equals(OrderParameter.OrderType.DESC)) {
-				query.orderBy(criteriaBuilder.desc(rootItemDefinition.get(order.getOrderField())));
+				query.orderBy(criteriaBuilder.desc(rootElement.get(order.getOrderField())));
 			}
 		}
 	}
 
 	/**
-	 *
 	 * Persiste or update an entity of specified type and return it
 	 *
 	 * @param em
@@ -223,6 +315,45 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 		} else {
 			return this.update(em, entity);
 		}
+	}
+
+	/**
+	 * Return a single page of entities of specified type sorted by info contained in OrderParameter
+	 * and filtered by a list of FilterParameter
+	 *
+	 * @param em
+	 * @param filters
+	 * @param order
+	 * @param page
+	 * @return
+	 */
+	public PaginatedData<T> search(EntityManager em, Set<FilterParameter> filters, OrderParameter order,
+			PageParameter page) {
+
+		CriteriaQuery<Long> createCount = this.buildCriteriaQuery(em, QueryType.COUNT, Long.class, filters, order);
+		Long count = em.createQuery(createCount).getSingleResult();
+
+		CriteriaQuery<T> query = this.buildCriteriaQuery(em, QueryType.ENTITIES, this.resourceClass, filters, order);
+		final TypedQuery<T> typedQuery = em.createQuery(query);
+		final int first = SqlUtils.calculateFirst(page.getPageNumber(), page.getSize());
+		List<T> results = typedQuery.setFirstResult(first).setMaxResults(page.getSize()).getResultList();
+
+		return new PaginatedData<>(results, page.getPageNumber(), page.getSize(), count.intValue());
+	}
+
+	/**
+	 * Return a list of entities of specified type sorted by info contained in OrderParameter and filtered by
+	 * a list of FilterParameter
+	 *
+	 * @param em
+	 * @param filters
+	 * @param order
+	 * @return
+	 */
+	public List<T> search(EntityManager em, Set<FilterParameter> filters, OrderParameter order) {
+		CriteriaQuery<T> query = this.buildCriteriaQuery(em, QueryType.ENTITIES, this.resourceClass, filters, order);
+		final TypedQuery<T> typedQuery = em.createQuery(query);
+		return typedQuery.getResultList();
 	}
 
 	protected T update(EntityManager em, T entity) {
