@@ -109,3 +109,31 @@ public class UserDAO extends BaseEntityDAO<User> {
 
 }
 ```
+
+## FilterParameter
+
+FilterParameter is meant to be an abstraction of a filter in an entity search. It has a type, a path, an operator and a
+value:
+
+- **type**: the type of the field to be filtered
+- **path**: the root's related path of the field to be filtered
+- **operator**: the operator used to compare *the value of the attribute* with *the value in the filter* (EQ, LIKE, IN,
+  etc.. see `FilterOperator` enum for a complete list)
+- **value**: the value to be compared
+
+Es: if we have an `Order`class linked to `Customer` and `Address` classes a filter might looks like this:
+
+```java
+FilterParameter<String> addressFilter=new SingleAttributeFilter<>("customer.address.city",FilterOperator.LIKE,"Flor");
+```
+
+A set of FilterParameter is meant to be used in `BaseEntityDAO.search(...)` method. All filters are chained with the
+boolean operator AND.
+
+## QueryManager
+
+QueryManager is a utility class that provides functionalities to build a javax.persistence.criteria.CriteriaQuery.
+
+It can create and retrieve a `javax.persistence.criteria.Join` using its **path**, generate a
+`javax.persistence.criteria.Order` from a OrderParameter and create a `javax.persistence.criteria.Predicate` from a
+FilterParameter.
