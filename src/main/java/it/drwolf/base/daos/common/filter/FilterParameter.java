@@ -5,6 +5,12 @@ import java.util.stream.Stream;
 
 import it.drwolf.base.daos.common.exceptions.FilterParameterException;
 
+/**
+ * Filter to be used in BaseEntityDAO.search(...) method
+ *
+ * @param <T>
+ * @author spaladini
+ */
 public abstract class FilterParameter<T> {
 
 	public static final String ROOT = "ROOT";
@@ -19,6 +25,11 @@ public abstract class FilterParameter<T> {
 
 	private String joinName;
 
+	/**
+	 * @param path:     the position of the field to be filtered. Es: "supplier.name"
+	 * @param operator: the operator to use (see enum FilterOperator). Es: LIKE
+	 * @param value:    the value to use. Es: "Ros"
+	 */
 	public FilterParameter(String path, FilterOperator operator, T value) {
 
 		this.path = path;
@@ -28,6 +39,11 @@ public abstract class FilterParameter<T> {
 		this.readPath();
 	}
 
+	/**
+	 * @param path:     the position of the field to be filtered. Es: ["supplier", "name"]
+	 * @param operator: the operator to use (see enum FilterOperator). Es: LIKE
+	 * @param value:    the value to use. Es: "Ros"
+	 */
 	public FilterParameter(Stream<String> path, FilterOperator operator, T value) {
 
 		this.path = path.collect(Collectors.joining("."));

@@ -10,19 +10,15 @@ import javax.persistence.EntityManager;
 import javax.persistence.TypedQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.From;
-import javax.persistence.criteria.Join;
 import javax.persistence.criteria.Order;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import javax.persistence.criteria.Selection;
 
-import it.drwolf.base.daos.common.JoinManager;
 import it.drwolf.base.daos.common.OrderParameter;
 import it.drwolf.base.daos.common.PageParameter;
 import it.drwolf.base.daos.common.PaginatedData;
-import it.drwolf.base.daos.common.SqlUtils;
-import it.drwolf.base.daos.common.exceptions.FilterParameterException;
+import it.drwolf.base.daos.common.QueryManager;
 import it.drwolf.base.daos.common.filter.FilterParameter;
 import it.drwolf.base.interfaces.Loggable;
 import it.drwolf.base.model.entities.BaseEntity;
@@ -50,7 +46,7 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 				.getGenericSuperclass()).getActualTypeArguments()[0];
 	}
 
-	private <V> CriteriaQuery<V> buildCriteriaQuery(EntityManager em, QueryType queryType, Class<V> clazz,
+	protected <V> CriteriaQuery<V> buildCriteriaQuery(EntityManager em, QueryType queryType, Class<V> clazz,
 			Set<FilterParameter> filters, OrderParameter order) {
 
 		CriteriaBuilder criteriaBuilder = em.getCriteriaBuilder();
@@ -58,19 +54,8 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 		CriteriaQuery<V> query = criteriaBuilder.createQuery(clazz);
 		Root<T> root = query.from(this.resourceClass);
 
-		final JoinManager<T> joinManager = new JoinManager<>(root);
-		final List<Predicate> predicates = new ArrayList<>();
-
-		for (FilterParameter filter : filters) {
-			Predicate p;
-			if (!filter.getJoinName().equals(FilterParameter.ROOT)) {
-				Join<BaseEntity, BaseEntity> join = joinManager.findOrMakeJoin(filter.getJoinName());
-				p = this.buildPredicate(criteriaBuilder, join, filter);
-			} else {
-				p = this.buildPredicate(criteriaBuilder, root, filter);
-			}
-			predicates.add(p);
-		}
+		final QueryManager<T> queryManager = new QueryManager<>(root);
+		final List<Predicate> predicates = queryManager.buildPredicatesList(criteriaBuilder, filters);
 
 		if (queryType.equals(QueryType.COUNT)) {
 			query.select((Selection<? extends V>) criteriaBuilder.countDistinct(root.get("id")));
@@ -81,64 +66,11 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 		}
 
 		if (order != null && !queryType.equals(QueryType.COUNT)) {
-			Order orderBy = joinManager.buildCriteriaOrder(criteriaBuilder, order, true);
+			Order orderBy = queryManager.buildCriteriaOrder(criteriaBuilder, order, true);
 			query.orderBy(orderBy);
 		}
 
 		return query.where(predicates.toArray(new Predicate[predicates.size()]));
-	}
-
-	private Predicate buildPredicate(CriteriaBuilder criteriaBuilder, From from, FilterParameter filter) {
-
-		switch (filter.getOperator()) {
-
-		case EQ:
-			return criteriaBuilder.equal(from.get(filter.getFieldName()), filter.getValue());
-
-		case GT:
-			return criteriaBuilder.greaterThan(from.get(filter.getFieldName()), (Comparable) filter.getValue());
-
-		case GE:
-			return criteriaBuilder.greaterThanOrEqualTo(from.get(filter.getFieldName()),
-					(Comparable) filter.getValue());
-
-		case LT:
-			return criteriaBuilder.lessThan(from.get(filter.getFieldName()), (Comparable) filter.getValue());
-
-		case LE:
-			return criteriaBuilder.lessThanOrEqualTo(from.get(filter.getFieldName()), (Comparable) filter.getValue());
-
-		case LIKE:
-			return criteriaBuilder.like(from.get(filter.getFieldName()), "%" + filter.getValue() + "%");
-
-		case NOT_LIKE:
-			return criteriaBuilder.notLike(from.get(filter.getFieldName()), "%" + filter.getValue() + "%");
-
-		case IN:
-			return criteriaBuilder.in(from.get(filter.getFieldName())).value(filter.getValue());
-
-		case NOT_IN:
-			return criteriaBuilder.not(criteriaBuilder.in(from.get(filter.getFieldName())).value(filter.getValue()));
-
-		case IS_EMPTY:
-			return criteriaBuilder.isEmpty(from.get(filter.getFieldName()));
-
-		case IS_NULL:
-			return criteriaBuilder.isNull(from.get(filter.getFieldName()));
-
-		case IS_NOT_NULL:
-			return criteriaBuilder.isNotNull(from.get(filter.getFieldName()));
-
-		case IS_TRUE:
-			return criteriaBuilder.isTrue(from.get(filter.getFieldName()));
-
-		case IS_FALSE:
-			return criteriaBuilder.isFalse(from.get(filter.getFieldName()));
-
-		default:
-			throw new FilterParameterException(String.format("Operator %s not implemented!", filter.getOperator()));
-		}
-
 	}
 
 	protected int calculateFirstResult(int page, int size) {
@@ -319,7 +251,7 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 
 	/**
 	 * Return a single page of entities of specified type sorted by info contained in OrderParameter
-	 * and filtered by a list of FilterParameter
+	 * and filtered by a list of FilterParameter. All filters are combined in AND.
 	 *
 	 * @param em
 	 * @param filters
@@ -335,7 +267,7 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 
 		CriteriaQuery<T> query = this.buildCriteriaQuery(em, QueryType.ENTITIES, this.resourceClass, filters, order);
 		final TypedQuery<T> typedQuery = em.createQuery(query);
-		final int first = SqlUtils.calculateFirst(page.getPageNumber(), page.getSize());
+		final int first = this.calculateFirstResult(page.getPageNumber(), page.getSize());
 		List<T> results = typedQuery.setFirstResult(first).setMaxResults(page.getSize()).getResultList();
 
 		return new PaginatedData<>(results, page.getPageNumber(), page.getSize(), count.intValue());
@@ -343,7 +275,7 @@ public abstract class BaseEntityDAO<T extends BaseEntity> implements Loggable {
 
 	/**
 	 * Return a list of entities of specified type sorted by info contained in OrderParameter and filtered by
-	 * a list of FilterParameter
+	 * a list of FilterParameter.  All filters are combined in AND.
 	 *
 	 * @param em
 	 * @param filters
